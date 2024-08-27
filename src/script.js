@@ -66,8 +66,8 @@ function init() {
   renderer.xr.enabled = true;
   document.body.appendChild(
     XRButton.createButton(renderer, {
-      optionalFeatures: ["hand-tracking", "depth-sensing"],
-      depthSensing: { usagePreference: ["gpu-optimized"], dataFormatPreference: [] },
+      optionalFeatures: ["hand-tracking"],
+      // depthSensing: { usagePreference: ["gpu-optimized"], dataFormatPreference: [] },
     })
   );
 
