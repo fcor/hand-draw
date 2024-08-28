@@ -20,10 +20,11 @@ let virtualCamera;
 let screenshotPlane;
 
 let screenshotPending = false;
+const apiUrl = "http://localhost:8080/describe_image";
 
 const testBtn = document.getElementById("test-btn");
 testBtn.addEventListener("click", () => {
-  takeScreenshot()
+  takeScreenshot();
 });
 
 const cursor = new THREE.Vector3();
@@ -52,11 +53,11 @@ function init() {
   // scene.add(grid);
 
   // Screenshot plane
-  const planeGeometry = new THREE.PlaneGeometry(1.6, 0.9);
+  const planeGeometry = new THREE.PlaneGeometry(0.8, 0.45);
   const planeMaterial = new THREE.MeshBasicMaterial({ map: null });
   screenshotPlane = new THREE.Mesh(planeGeometry, planeMaterial);
   screenshotPlane.visible = false;
-  screenshotPlane.position.set(0, 1.5, -0.8);
+  screenshotPlane.position.set(0, 1.5, -1);
   scene.add(screenshotPlane);
 
   scene.add(new THREE.HemisphereLight(0x888877, 0x777788, 3));
@@ -92,7 +93,7 @@ function init() {
       // depthSensing: { usagePreference: ["gpu-optimized"], dataFormatPreference: [] },
     })
   );
-  virtualCamera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.01, 50);
+  virtualCamera = new THREE.PerspectiveCamera(120, sizes.width / sizes.height, 0.01, 50);
   virtualCamera.position.set(0, 1.6, 0);
   renderTarget = new THREE.WebGLRenderTarget(sizes.width, sizes.height, { samples: 4, generateMipmaps: true });
 
@@ -220,22 +221,64 @@ function isThumbsUp(hand) {
 }
 
 function takeScreenshot() {
+  const xrCamera = renderer.xr.getCamera();
 
-  const frame = renderer.xr.getFrame();
-  console.log(frame);
-  const pose = frame.getViewerPose(renderer.xr.getReferenceSpace());
-  const mat4 = new THREE.Matrix4().fromArray(pose.transform.matrix);
-  mat4.decompose(virtualCamera.position, virtualCamera.quaternion, new THREE.Vector3());
-  // virtualCamera.position.copy(camera.position);
-  // virtualCamera.quaternion.copy(camera.quaternion);
+  xrCamera.getWorldPosition(virtualCamera.position);
+  xrCamera.getWorldQuaternion(virtualCamera.quaternion);
+
+  const marker= new THREE.Mesh(new THREE.SphereGeometry(0.01), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
+  scene.add(marker);
+  marker.position.copy(virtualCamera.position);
+  virtualCamera.fov = xrCamera.fov;
+  virtualCamera.updateProjectionMatrix();
+  virtualCamera.rotateX(Math.PI /4);
   renderer.setRenderTarget(renderTarget);
   renderer.render(scene, virtualCamera);
   renderer.setRenderTarget(null);
   shouldTakeScreenshot = false;
 
+  console.log("Xr cam", xrCamera.position);
+  console.log("Virtual cam", virtualCamera.position);
+
   screenshotPlane.material.map = renderTarget.texture;
   screenshotPlane.material.needsUpdate = true;
   screenshotPlane.visible = true;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = renderTarget.width;
+  canvas.height = renderTarget.height;
+  const context = canvas.getContext("2d");
+
+  const pixelBuffer = new Uint8Array(renderTarget.width * renderTarget.height * 4);
+  renderer.readRenderTargetPixels(renderTarget, 0, 0, renderTarget.width, renderTarget.height, pixelBuffer);
+
+  // Create an ImageData object and put the pixelBuffer into the canvas
+  const imageData = new ImageData(new Uint8ClampedArray(pixelBuffer), renderTarget.width, renderTarget.height);
+  context.putImageData(imageData, 0, 0);
+
+  // 6. Convert the canvas to a base64 string
+  const base64String = canvas.toDataURL();
+
+  const image = base64String.replace("data:image/png;base64,", "");
+
+  fetch(apiUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      base64_image: image,
+    }),
+  })
+    .then((response) => response.json())
+    .then((data) => {
+      console.log(data.image_description);
+    })
+    .catch((error) => {
+      console.error("Error sending data:", error);
+    });
 }
 
-window.takeScreenshot = () => {screenshotPending = true;};
+window.takeScreenshot = () => {
+  screenshotPending = true;
+};
