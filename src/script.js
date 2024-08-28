@@ -11,7 +11,18 @@ let controller1, controller2;
 let controllerGrip1, controllerGrip2;
 let hand1, hand2;
 let painter1, painter2;
-let handsOn = false;
+let handsOn = 0;
+const maxDistance = 0.03;
+let shouldTakeScreenshot = true;
+let thumbsUpHand;
+let renderTarget;
+let virtualCamera;
+let screenshotPlane;
+
+const testBtn = document.getElementById("test-btn");
+testBtn.addEventListener("click", () => {
+  takeScreenshot()
+});
 
 const cursor = new THREE.Vector3();
 
@@ -32,10 +43,19 @@ function init() {
   const dracoLoader = new DRACOLoader();
   dracoLoader.setDecoderPath("/draco/");
 
+  // Reference grid
   const gltfLoader = new GLTFLoader();
   gltfLoader.setDRACOLoader(dracoLoader);
   const grid = new THREE.GridHelper(4, 1, 0x111111, 0x111111);
-  scene.add(grid);
+  // scene.add(grid);
+
+  // Screenshot plane
+  const planeGeometry = new THREE.PlaneGeometry(1, 1);
+  const planeMaterial = new THREE.MeshBasicMaterial({ map: null });
+  screenshotPlane = new THREE.Mesh(planeGeometry, planeMaterial);
+  screenshotPlane.visible = false;
+  screenshotPlane.position.set(0, 1.5, -0.5);
+  scene.add(screenshotPlane);
 
   scene.add(new THREE.HemisphereLight(0x888877, 0x777788, 3));
 
@@ -70,6 +90,8 @@ function init() {
       // depthSensing: { usagePreference: ["gpu-optimized"], dataFormatPreference: [] },
     })
   );
+  virtualCamera = new THREE.PerspectiveCamera();
+  renderTarget = new THREE.WebGLRenderTarget(512, 512, { samples: 4, generateMipmaps: true });
 
   const controllerModelFactory = new XRControllerModelFactory();
   // Controllers
@@ -123,16 +145,26 @@ window.addEventListener("resize", () => {
 });
 
 function animate() {
-  handleHand(hand1);
-  handleHand(hand2);
+  if (handsOn === 2) {
+    handleHand(hand1);
+    handleHand(hand2);
+
+    if (shouldTakeScreenshot && (isThumbsUp(hand1) || isThumbsUp(hand2))) {
+      takeScreenshot();
+    }
+
+    // if (!shouldTakeScreenshot) {
+    //   if (!isThumbsUp(thumbsUpHand)) {
+    //     shouldTakeScreenshot = true;
+    //   }
+    // }
+  }
 
   // Render
   renderer.render(scene, camera);
 }
 
 function handleHand(hand) {
-  if (handsOn === false) return;
-
   hand.updateMatrixWorld(true);
 
   const userData = hand.userData;
@@ -162,5 +194,32 @@ function onPinchEnd(e) {
 }
 
 function onControllerConnected(e) {
-  handsOn = true;
+  handsOn++;
+}
+
+function isThumbsUp(hand) {
+  const thumbPosition = hand.joints["thumb-phalanx-proximal"].position;
+  const indexTipPosition = hand.joints["index-finger-tip"].position;
+
+  const distance = thumbPosition.distanceTo(indexTipPosition);
+
+  if (distance < maxDistance) {
+    thumbsUpHand = hand;
+    return true;
+  }
+
+  return false;
+}
+
+function takeScreenshot() {
+  virtualCamera.position.copy(camera.position);
+  virtualCamera.quaternion.copy(camera.quaternion);
+  renderer.setRenderTarget(renderTarget);
+  renderer.render(scene, virtualCamera);
+  renderer.setRenderTarget(null);
+  shouldTakeScreenshot = false;
+
+  screenshotPlane.material.map = renderTarget.texture;
+  screenshotPlane.material.needsUpdate = true;
+  screenshotPlane.visible = true;
 }

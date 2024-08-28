@@ -14,3 +14,10 @@ body {
   left: 0;
   outline: none;
 }
+
+#test-btn {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  z-index: 1;
+}
