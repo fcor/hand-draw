@@ -19,6 +19,8 @@ let renderTarget;
 let virtualCamera;
 let screenshotPlane;
 
+let screenshotPending = false;
+
 const testBtn = document.getElementById("test-btn");
 testBtn.addEventListener("click", () => {
   takeScreenshot()
@@ -153,6 +155,11 @@ function animate() {
       takeScreenshot();
     }
 
+    if (screenshotPending) {
+      screenshotPending = false;
+      takeScreenshot();
+    }
+
     // if (!shouldTakeScreenshot) {
     //   if (!isThumbsUp(thumbsUpHand)) {
     //     shouldTakeScreenshot = true;
@@ -212,8 +219,14 @@ function isThumbsUp(hand) {
 }
 
 function takeScreenshot() {
-  virtualCamera.position.copy(camera.position);
-  virtualCamera.quaternion.copy(camera.quaternion);
+
+  const frame = renderer.xr.getFrame();
+  console.log(frame);
+  const pose = frame.getViewerPose(renderer.xr.getReferenceSpace());
+  const mat4 = new THREE.Matrix4().fromArray(pose.transform.matrix);
+  mat4.decompose(virtualCamera.position, virtualCamera.quaternion, new THREE.Vector3());
+  // virtualCamera.position.copy(camera.position);
+  // virtualCamera.quaternion.copy(camera.quaternion);
   renderer.setRenderTarget(renderTarget);
   renderer.render(scene, virtualCamera);
   renderer.setRenderTarget(null);
@@ -223,3 +236,5 @@ function takeScreenshot() {
   screenshotPlane.material.needsUpdate = true;
   screenshotPlane.visible = true;
 }
+
+window.takeScreenshot = () => {screenshotPending = true;};
