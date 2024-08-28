@@ -52,11 +52,11 @@ function init() {
   // scene.add(grid);
 
   // Screenshot plane
-  const planeGeometry = new THREE.PlaneGeometry(1, 1);
+  const planeGeometry = new THREE.PlaneGeometry(1.6, 0.9);
   const planeMaterial = new THREE.MeshBasicMaterial({ map: null });
   screenshotPlane = new THREE.Mesh(planeGeometry, planeMaterial);
   screenshotPlane.visible = false;
-  screenshotPlane.position.set(0, 1.5, -0.5);
+  screenshotPlane.position.set(0, 1.5, -0.8);
   scene.add(screenshotPlane);
 
   scene.add(new THREE.HemisphereLight(0x888877, 0x777788, 3));
@@ -93,6 +93,7 @@ function init() {
     })
   );
   virtualCamera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.01, 50);
+  virtualCamera.position.set(0, 1.6, 0);
   renderTarget = new THREE.WebGLRenderTarget(sizes.width, sizes.height, { samples: 4, generateMipmaps: true });
 
   const controllerModelFactory = new XRControllerModelFactory();
