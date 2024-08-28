@@ -91,7 +91,7 @@ function init() {
     })
   );
   virtualCamera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.01, 50);
-  renderTarget = new THREE.WebGLRenderTarget(512, 512, { samples: 4, generateMipmaps: true });
+  renderTarget = new THREE.WebGLRenderTarget(sizes.width, sizes.height, { samples: 4, generateMipmaps: true });
 
   const controllerModelFactory = new XRControllerModelFactory();
   // Controllers
